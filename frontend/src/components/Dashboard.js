@@ -20,7 +20,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import PersonaCards from "../components/PersonaCards"; // adjust path if needed
-impo;
+
 export default function Dashboard() {
  const user = JSON.parse(localStorage.getItem("user") || "null");
 

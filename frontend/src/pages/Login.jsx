@@ -20,6 +20,7 @@ const Login = () => {
 
  const handleLogin = async (e) => {
   e.preventDefault();
+
   try {
    const res = await fetch("http://127.0.0.1:5000/api/auth/login", {
     method: "POST",
@@ -29,17 +30,32 @@ const Login = () => {
 
    const data = await res.json();
 
-   if (res.ok) {
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    toast.success("Login successful!");
-    setTimeout(() => navigate("/dashboard"), 800); // ✅ Smooth redirect
-   } else {
-    toast.error(data.msg || "Login failed");
+   if (!res.ok) {
+    toast.error(data.msg || "Invalid login credentials");
+    return;
    }
+
+   // ✅ Store token and user
+   localStorage.setItem("token", data.token);
+   localStorage.setItem("user", JSON.stringify(data.user));
+
+   const role = data.user?.role || "student";
+
+   toast.success(`Logged in as ${role}`);
+
+   // ✅ Redirect based on role
+   setTimeout(() => {
+    if (role === "admin") {
+     navigate("/admin"); // ✅ Admin Dashboard
+    } else if (role === "mentor") {
+     navigate("/mentor"); // ✅ Mentor Dashboard
+    } else {
+     navigate("/dashboard"); // ✅ Student Dashboard
+    }
+   }, 800);
   } catch (err) {
    console.error(err);
-   toast.error("Something went wrong!");
+   toast.error("Backend not reachable, check Flask server.");
   }
  };
 
@@ -52,6 +68,7 @@ const Login = () => {
       Enter your credentials to access your account
      </CardDescription>
     </CardHeader>
+
     <CardContent>
      <form onSubmit={handleLogin} className="space-y-4">
       <div className="space-y-2">
