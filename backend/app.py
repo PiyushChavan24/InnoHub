@@ -1015,27 +1015,79 @@ def download_project(project_id):
 #         return jsonify({"msg": "User deleted"}), 200
 
 # ============================
-# Update User (Admin Only)
+# ✅ Update/Delete User (Admin Only)
 # ============================
-
-
-# ============================
-# ✅ Delete User (Admin)
-# ============================
-@app.route("/api/admin/users/<user_id>", methods=["DELETE", "OPTIONS"])
+@app.route("/api/admin/users/<user_id>", methods=["PUT", "DELETE", "OPTIONS"])
 @cross_origin()
 @auth_required
-def admin_delete_user(user_id):
+def admin_user_actions(user_id):
+    """
+    ✅ Handle user update (PUT) and delete (DELETE) operations
+    Admin can update any user's information or delete users
+    """
     if request.user_role != "admin":
         return jsonify({"msg": "Admin access only"}), 403
 
     try:
-        result = users_col.delete_one({"_id": ObjectId(user_id)})
-        if result.deleted_count == 0:
+        # ✅ Validate user ID
+        try:
+            user = users_col.find_one({"_id": ObjectId(user_id)})
+        except Exception:
+            return jsonify({"msg": "Invalid user ID"}), 400
+
+        if not user:
             return jsonify({"msg": "User not found"}), 404
-        return jsonify({"msg": "User deleted successfully"}), 200
+
+        # ✅ DELETE: Delete user
+        if request.method == "DELETE":
+            result = users_col.delete_one({"_id": ObjectId(user_id)})
+            if result.deleted_count == 0:
+                return jsonify({"msg": "User not found"}), 404
+            return jsonify({"msg": "User deleted successfully"}), 200
+
+        # ✅ PUT: Update user details
+        if request.method == "PUT":
+            data = request.json or {}
+            updated_fields = {}
+
+            # ✅ Update name if provided
+            if "name" in data and data["name"]:
+                updated_fields["name"] = data["name"]
+
+            # ✅ Update email if provided (check for duplicates)
+            if "email" in data and data["email"]:
+                # Check if email already exists for another user
+                existing_user = users_col.find_one({
+                    "email": data["email"],
+                    "_id": {"$ne": ObjectId(user_id)}
+                })
+                if existing_user:
+                    return jsonify({"msg": "Email already exists"}), 400
+                updated_fields["email"] = data["email"]
+
+            # ✅ Update role if provided
+            if "role" in data and data["role"]:
+                if data["role"] not in ["student", "mentor", "admin"]:
+                    return jsonify({"msg": "Invalid role"}), 400
+                updated_fields["role"] = data["role"]
+
+            if not updated_fields:
+                return jsonify({"msg": "No valid fields provided"}), 400
+
+            # ✅ Update user in database
+            result = users_col.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$set": updated_fields}
+            )
+
+            if result.modified_count > 0:
+                return jsonify({"msg": "User updated successfully"}), 200
+            else:
+                return jsonify({"msg": "No changes made"}), 200
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"msg": "Server error", "error": str(e)}), 500
 
 # ============================
