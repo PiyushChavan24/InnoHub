@@ -367,7 +367,7 @@ export default function ProjectList() {
    const token = localStorage.getItem("token");
 
    const res = await fetch(
-    `http://localhost:5000/api/projects/download/${id}`,
+    `http://127.0.0.1:5000/api/projects/download/${id}`,
     {
      method: "GET",
      headers: {
@@ -377,7 +377,8 @@ export default function ProjectList() {
    );
 
    if (!res.ok) {
-    alert("Failed to download file");
+    const errorData = await res.json().catch(() => ({}));
+    alert(errorData.msg || "Failed to download file");
     return;
    }
 
@@ -388,14 +389,28 @@ export default function ProjectList() {
    const a = document.createElement("a");
    a.href = url;
 
-   let filename =
-    res.headers.get("Content-Disposition")?.split("filename=")[1] ||
-    "project_file";
-
-   filename = filename.replace(/"/g, "").trim();
+   // Extract filename from Content-Disposition header
+   let filename = "project_file";
+   const contentDisposition = res.headers.get("Content-Disposition");
+   if (contentDisposition) {
+    // Try to extract filename from Content-Disposition header
+    // Handles both quoted and unquoted filenames, and URL-encoded filenames
+    const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (filenameMatch && filenameMatch[1]) {
+     filename = filenameMatch[1].replace(/['"]/g, "");
+     // Decode URL-encoded filename if present
+     try {
+      filename = decodeURIComponent(filename);
+     } catch (e) {
+      // If decoding fails, use the original filename
+     }
+    }
+   }
 
    a.download = filename;
+   document.body.appendChild(a);
    a.click();
+   document.body.removeChild(a);
 
    window.URL.revokeObjectURL(url);
 
@@ -403,7 +418,7 @@ export default function ProjectList() {
    fetchList();
   } catch (err) {
    console.error("Download error:", err);
-   alert("Error downloading file");
+   alert("Error downloading file. Please try again.");
   }
  }
 

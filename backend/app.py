@@ -839,16 +839,41 @@ def download_project(project_id):
         if not path or not os.path.exists(path):
             return jsonify({"msg": "File missing"}), 404
 
+        # ✅ Increment download count
         new_count = project.get("download_count", 0) + 1
         projects_col.update_one(
             {"_id": ObjectId(project_id)},
             {"$set": {"download_count": new_count}}
         )
 
+        # ✅ Extract directory and filename
         directory, filename = os.path.split(path)
-        return send_from_directory(directory, filename, as_attachment=True)
+        
+        # ✅ Get original filename - remove UUID prefix if present (format: uuid_filename.ext)
+        original_filename = filename
+        if "_" in filename:
+            parts = filename.split("_", 1)
+            if len(parts) == 2 and len(parts[0]) == 32:  # UUID is 32 chars
+                original_filename = parts[1]
+        
+        # ✅ Use send_file for better control and proper headers
+        response = send_file(
+            path,
+            as_attachment=True,
+            download_name=original_filename,
+            mimetype='application/octet-stream'
+        )
+        
+        # ✅ Set CORS headers explicitly
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+        response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
+        
+        return response
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"msg": "Server error", "error": str(e)}), 500
     
 # ============================
@@ -1325,11 +1350,33 @@ def download_plagiarism_pdf_route(project_id):
     if not project:
         return jsonify({"msg": "Project not found"}), 404
 
-    # ✅ Get file content for plagiarism model
-    file_text = project.get("textContent", "")
+    # ✅ Prepare other documents for plagiarism comparison
+    others = [
+        {"id": str(o["_id"]), "text": o.get("textContent", "")}
+        for o in projects_col.find({"_id": {"$ne": ObjectId(project_id)}})
+    ]
 
     # ✅ Run plagiarism model LIVE (no DB save)
-    similarity_percentage, match_results = compare_with_corpus(file_text)
+    result = compare_with_corpus(
+        {"id": str(project["_id"]), "text": project.get("textContent", "")},
+        others
+    )
+
+    similarity_percentage = result.get("highest", 0)
+    match_results = result.get("results", [])
+
+    # ✅ Transform matches: convert snippets (list) to snippet (string) for PDF generator
+    formatted_matches = []
+    for match in match_results:
+        snippets_list = match.get("snippets", [])
+        # Join snippets with separator, or use first snippet, or default message
+        snippet_text = " | ".join(snippets_list) if snippets_list else "No snippet available"
+        formatted_matches.append({
+            "projectId": match.get("projectId", "Unknown"),
+            "similarity": match.get("similarity", 0),
+            "percent": match.get("similarity", 0),  # Support both keys
+            "snippet": snippet_text
+        })
 
     # ✅ Build formatted object for PDF generator
     formatted = {
@@ -1345,9 +1392,9 @@ def download_plagiarism_pdf_route(project_id):
         "approved": project.get("approved", False),
         "uploadDate": str(project.get("uploadDate")),
         
-        # ✅ NEW — these are COMING DIRECTLY FROM MODEL
+        # ✅ Plagiarism results from model
         "similarityPercentage": similarity_percentage,
-        "matches": match_results
+        "matches": formatted_matches
     }
 
     # ✅ Generate PDF
