@@ -432,21 +432,49 @@ def mentor_overview():
 @cross_origin()
 @auth_required
 def mentor_projects():
+    """
+    ✅ Get all projects assigned to the logged-in mentor
+    Returns projects where mentorId matches the current user's ID
+    """
     try:
+        # ✅ Verify user is a mentor or admin
+        if request.user_role not in ["mentor", "admin"]:
+            return jsonify({"msg": "Access denied. Mentor or admin role required"}), 403
+
         mentor_id = ObjectId(request.user_id)  # ✅ convert string to ObjectId
-        print("Fetching projects for mentorId:", mentor_id)
 
         projects = []
+        
+        # ✅ Find all projects assigned to this mentor
         for p in projects_col.find({"mentorId": mentor_id}).sort("uploadDate", -1):
             p = convert_objectids(p)
 
-            # resolve uploader name safely
-            uploader = users_col.find_one({"_id": ObjectId(p.get("uploadedBy"))}) if p.get("uploadedBy") else None
-            p["uploadedBy"] = uploader["name"] if uploader else "Unknown"
+            # ✅ Resolve uploader/student name safely
+            if p.get("uploadedBy"):
+                try:
+                    uploader = users_col.find_one({"_id": ObjectId(p.get("uploadedBy"))})
+                    p["uploadedBy"] = uploader["name"] if uploader else "Unknown"
+                except:
+                    p["uploadedBy"] = "Unknown"
+            else:
+                p["uploadedBy"] = "Unknown"
 
-            # ensure defaults
+            # ✅ Ensure all required fields have defaults
             p["approved"] = p.get("approved", False)
             p["download_count"] = p.get("download_count", 0)
+            p["category"] = p.get("category", "")
+            p["description"] = p.get("description", "")
+            
+            # ✅ Ensure teammates array is properly formatted
+            if not p.get("teammates"):
+                p["teammates"] = []
+            
+            # ✅ Include mentor info if available
+            if p.get("mentor"):
+                mentor_info = p.get("mentor", {})
+                if isinstance(mentor_info, dict):
+                    p["mentorName"] = mentor_info.get("name") or p.get("mentorName", "N/A")
+                    p["mentorEmail"] = mentor_info.get("email") or p.get("mentorEmail", "N/A")
 
             projects.append(p)
 

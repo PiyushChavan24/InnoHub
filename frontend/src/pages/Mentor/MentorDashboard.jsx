@@ -461,6 +461,37 @@ const MentorDashboard = () => {
   }
  }
 
+ // ✅ Approve project (mentor only)
+ async function approveProject(id) {
+  if (!window.confirm("Approve this project?")) return;
+
+  try {
+   const token = localStorage.getItem("token");
+
+   const res = await fetch(
+    `http://127.0.0.1:5000/api/mentor/projects/${id}/approve`,
+    {
+     method: "PATCH",
+     headers: {
+      Authorization: `Bearer ${token}`,
+     },
+    }
+   );
+
+   const data = await res.json();
+
+   if (res.ok) {
+    alert("Project approved successfully!");
+    fetchMentorProjects();
+   } else {
+    alert(data.msg || "Failed to approve project");
+   }
+  } catch (err) {
+   console.error(err);
+   alert("Error while approving project");
+  }
+ }
+
  // ✅ Calculate stats
  const approvedCount = projects.filter((p) => p.approved === true).length;
  const pendingCount = projects.filter((p) => p.approved === false).length;
@@ -669,6 +700,18 @@ const MentorDashboard = () => {
               {/* Actions */}
               <TableCell className="text-right">
                <div className="flex justify-end gap-2">
+                {/* ✅ Approve Button (only for pending projects) */}
+                {project.approved === false && (
+                 <Button
+                  size="sm"
+                  variant="outline"
+                  className="hover:bg-green-50 hover:text-green-600 hover:border-green-300 transition-colors"
+                  onClick={() => approveProject(project._id)}>
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Approve
+                 </Button>
+                )}
+
                 <Button
                  size="sm"
                  variant="outline"
@@ -708,6 +751,8 @@ const MentorDashboard = () => {
     onClose={() => setEditOpen(false)}
     project={selectedProject}
     onSave={handleEditSave}
+    onApprove={approveProject}
+    userRole="mentor"
    />
   </div>
  );
