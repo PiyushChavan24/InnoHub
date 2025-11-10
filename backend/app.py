@@ -8,6 +8,7 @@ import uuid
 import datetime
 import hashlib
 import jwt
+import mimetypes
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS, cross_origin
 from werkzeug.utils import secure_filename
@@ -852,20 +853,38 @@ def get_my_projects():
         return jsonify({"msg": "Server error", "error": str(e)}), 500
 
 # ============================
-# Download Project
+# ✅ Download Project File
 # ============================
 @app.route("/api/projects/download/<project_id>", methods=["GET", "OPTIONS"])
 @cross_origin()
 @auth_required
 def download_project(project_id):
+    """
+    ✅ Download the project file uploaded by the student
+    
+    - Requires authentication (JWT token)
+    - Finds project by ID
+    - Increments download count
+    - Returns the file with proper headers
+    - Handles filename extraction (removes UUID prefix)
+    """
     try:
-        project = projects_col.find_one({"_id": ObjectId(project_id)})
+        # ✅ Validate project ID format
+        try:
+            project = projects_col.find_one({"_id": ObjectId(project_id)})
+        except Exception:
+            return jsonify({"msg": "Invalid project ID"}), 400
+
         if not project:
             return jsonify({"msg": "Project not found"}), 404
 
+        # ✅ Check if file exists
         path = project.get("filePath")
-        if not path or not os.path.exists(path):
-            return jsonify({"msg": "File missing"}), 404
+        if not path:
+            return jsonify({"msg": "No file associated with this project"}), 404
+        
+        if not os.path.exists(path):
+            return jsonify({"msg": "File missing from server"}), 404
 
         # ✅ Increment download count
         new_count = project.get("download_count", 0) + 1
@@ -884,18 +903,25 @@ def download_project(project_id):
             if len(parts) == 2 and len(parts[0]) == 32:  # UUID is 32 chars
                 original_filename = parts[1]
         
+        # ✅ Determine MIME type based on file extension
+        mimetype, _ = mimetypes.guess_type(path)
+        if not mimetype:
+            mimetype = 'application/octet-stream'
+        
         # ✅ Use send_file for better control and proper headers
         response = send_file(
             path,
             as_attachment=True,
             download_name=original_filename,
-            mimetype='application/octet-stream'
+            mimetype=mimetype
         )
         
-        # ✅ Set CORS headers explicitly
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
-        response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
+        # ✅ Expose Content-Disposition header for frontend access (Flask-CORS handles other CORS headers)
+        response.headers["Access-Control-Expose-Headers"] = "Content-Disposition, Content-Type"
+        
+        # ✅ Ensure Content-Disposition header is properly set
+        if "Content-Disposition" not in response.headers:
+            response.headers["Content-Disposition"] = f'attachment; filename="{original_filename}"'
         
         return response
 
@@ -1443,6 +1469,59 @@ def list_reports():
         docs.append(convert_objectids(r))
 
     return jsonify({"reports": docs})
+
+# ============================
+# ✅ Mentor Reports - Get all plagiarism reports for mentor's projects
+# ============================
+@app.route("/api/mentor/reports", methods=["GET", "OPTIONS"])
+@cross_origin()
+@auth_required
+def mentor_reports():
+    """
+    ✅ Get all plagiarism reports for projects assigned to the logged-in mentor
+    Returns reports with project details for projects where mentorId matches
+    """
+    try:
+        # ✅ Verify user is a mentor or admin
+        if request.user_role not in ["mentor", "admin"]:
+            return jsonify({"msg": "Access denied. Mentor or admin role required"}), 403
+
+        mentor_id = ObjectId(request.user_id)
+        
+        # ✅ Find all projects assigned to this mentor
+        mentor_projects = list(projects_col.find({"mentorId": mentor_id}))
+        project_ids = [str(p["_id"]) for p in mentor_projects]
+        
+        if not project_ids:
+            return jsonify({"reports": []}), 200
+        
+        # ✅ Find all reports for these projects
+        reports = []
+        for report in reports_col.find({"projectId": {"$in": project_ids}}).sort("reportDate", -1):
+            report = convert_objectids(report)
+            
+            # ✅ Find the associated project
+            project_id = report.get("projectId")
+            project = projects_col.find_one({"_id": ObjectId(project_id)})
+            
+            if project:
+                # ✅ Add project details to report
+                report["projectTitle"] = project.get("title", "Untitled")
+                report["projectDescription"] = project.get("description", "")
+                report["projectCategory"] = project.get("category", "")
+                report["uploadedBy"] = resolve_user_name(project.get("uploadedBy"))
+                report["uploadDate"] = str(project.get("uploadDate", ""))
+                report["approved"] = project.get("approved", False)
+            
+            reports.append(report)
+        
+        return jsonify({"reports": reports}), 200
+
+    except Exception as e:
+        import traceback
+        print("Error in /api/mentor/reports:")
+        traceback.print_exc()
+        return jsonify({"msg": "Server error", "error": str(e)}), 500
 
 
 # ============================

@@ -992,7 +992,12 @@ import { useParams, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Footer from "../components/Footer";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import {
+ Card,
+ CardContent,
+ CardHeader,
+ CardTitle,
+} from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import {
@@ -1055,7 +1060,8 @@ const ProjectDetail = () => {
    return;
   }
 
-  const downloadUrl = `http://127.0.0.1:5000/api/projects/${id}/download`;
+  // ✅ Use correct endpoint: /api/projects/download/<project_id>
+  const downloadUrl = `http://127.0.0.1:5000/api/projects/download/${id}`;
 
   try {
    const response = await fetch(downloadUrl, {
@@ -1064,27 +1070,53 @@ const ProjectDetail = () => {
    });
 
    if (!response.ok) {
-    toast.error("Failed to download file");
+    const errorData = await response.json().catch(() => ({}));
+    toast.error(errorData.msg || "Failed to download file");
     return;
    }
 
+   // ✅ Convert response to blob
    const blob = await response.blob();
-   const filename = getFileName();
 
+   // ✅ Extract filename from Content-Disposition header
+   let filename = getFileName() || "project_file";
+   const contentDisposition = response.headers.get("Content-Disposition");
+   if (contentDisposition) {
+    // Try to extract filename from Content-Disposition header
+    // Handles both quoted and unquoted filenames, and URL-encoded filenames
+    const filenameMatch = contentDisposition.match(
+     /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+    );
+    if (filenameMatch && filenameMatch[1]) {
+     filename = filenameMatch[1].replace(/['"]/g, "");
+     // Decode URL-encoded filename if present
+     try {
+      filename = decodeURIComponent(filename);
+     } catch (e) {
+      // If decoding fails, use the original filename
+     }
+    }
+   }
+
+   // ✅ Create download link and trigger download
    const url = window.URL.createObjectURL(blob);
    const link = document.createElement("a");
-
    link.href = url;
    link.download = filename;
+   link.style.display = "none"; // Hide the link
    document.body.appendChild(link);
    link.click();
-   link.remove();
 
-   window.URL.revokeObjectURL(url);
+   // ✅ Clean up after a short delay
+   setTimeout(() => {
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+   }, 100);
+
    toast.success("Download started!");
   } catch (err) {
-   toast.error("Download failed");
-   console.error(err);
+   toast.error("Download failed. Please try again.");
+   console.error("Download error:", err);
   }
  };
 
@@ -1094,7 +1126,9 @@ const ProjectDetail = () => {
    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
     <div className="flex flex-col items-center gap-4">
      <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
-     <p className="text-lg font-medium text-gray-600">Loading project details...</p>
+     <p className="text-lg font-medium text-gray-600">
+      Loading project details...
+     </p>
     </div>
    </div>
   );
@@ -1259,7 +1293,9 @@ const ProjectDetail = () => {
              </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-             <p className="font-semibold text-gray-900">{project.mentor.name}</p>
+             <p className="font-semibold text-gray-900">
+              {project.mentor.name}
+             </p>
              <div className="flex items-center gap-1.5 mt-1">
               <Mail className="h-3.5 w-3.5 text-gray-500" />
               <p className="text-sm text-gray-600">{project.mentor.email}</p>
@@ -1307,7 +1343,9 @@ const ProjectDetail = () => {
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                  <Mail className="h-3 w-3 text-gray-500 flex-shrink-0" />
-                 <p className="text-xs text-gray-600 truncate">{member.email}</p>
+                 <p className="text-xs text-gray-600 truncate">
+                  {member.email}
+                 </p>
                 </div>
                </div>
               </div>

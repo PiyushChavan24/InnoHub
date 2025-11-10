@@ -238,6 +238,7 @@ import MentorDashboard from "./pages/Mentor/MentorDashboard";
 import ManageUsers from "./pages/Admin/ManageUser"; // ✅ ADD THIS
 import AdminProjects from "./pages/Admin/AdminProjects";
 import MentorProjectsList from "./pages/Mentor/MentorProjectsList";
+import MentorReports from "./pages/Mentor/MentorReports";
 import Explore from "./pages/Explore";
 import ProjectDetail from "./components/ProjectDetails";
 export default function App() {
@@ -356,8 +357,16 @@ export default function App() {
      <Route
       path="/mentor/projects"
       element={
-       <ProtectedRoute allowed={["mentor"]}>
+       <ProtectedRoute allowed={["mentor", "admin"]}>
         <MentorProjectsList />
+       </ProtectedRoute>
+      }
+     />
+     <Route
+      path="/mentor/reports"
+      element={
+       <ProtectedRoute allowed={["mentor", "admin"]}>
+        <MentorReports />
        </ProtectedRoute>
       }
      />

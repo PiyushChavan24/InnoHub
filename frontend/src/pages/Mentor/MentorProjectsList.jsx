@@ -171,7 +171,7 @@ const MentorProjectsList = () => {
         {filteredProjects.map((project) => (
          <ProjectCard
           key={project._id}
-          id={project._id}
+          id={project._id || project.id}
           title={project.title}
           description={project.description}
           category={project.category || "General"}
