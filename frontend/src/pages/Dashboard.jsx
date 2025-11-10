@@ -585,6 +585,8 @@ import {
  Edit,
  Trash2,
  Plus,
+ LayoutDashboard,
+ User,
 } from "lucide-react";
 
 import Footer from "../components/Footer";
@@ -597,6 +599,9 @@ const Dashboard = () => {
 
  const [editOpen, setEditOpen] = useState(false);
  const [selectedProject, setSelectedProject] = useState(null);
+
+ // Get user info from localStorage
+ const user = JSON.parse(localStorage.getItem("user") || "null");
 
  useEffect(() => {
   fetchMyProjects();
@@ -720,42 +725,59 @@ const Dashboard = () => {
  ];
 
  return (
-  <div className="min-h-screen flex flex-col">
-   <main className="flex-1 bg-muted/30">
+  <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
+   <main className="flex-1">
     {/* HEADER */}
-    <section className="gradient-hero border-b py-12">
-     <div className="container">
-      <h1 className="text-4xl font-bold mb-2">
-       Welcome back,{" "}
-       <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-        Student
-       </span>
-      </h1>
-      <p className="text-muted-foreground">
-       Manage your projects, track performance, and showcase your work.
-      </p>
+    <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-purple-600 to-blue-700">
+     <div className="absolute inset-0 opacity-20">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+     </div>
+     <div className="container relative py-12 md:py-16 z-10 px-4">
+      <div className="max-w-4xl">
+       <div className="flex items-center gap-4 mb-6">
+        <div className="p-3 rounded-full bg-white/20 backdrop-blur-sm flex-shrink-0">
+         <LayoutDashboard className="h-6 w-6 text-white" />
+        </div>
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
+         Welcome back,{" "}
+         <span className="bg-gradient-to-r from-yellow-300 to-pink-300 bg-clip-text text-transparent">
+          {user?.name?.split(" ")[0] || "Student"}
+         </span>
+        </h1>
+       </div>
+       <p className="text-lg text-white/90 mb-8 max-w-2xl leading-relaxed">
+        Manage your projects, track performance, and showcase your innovative
+        work to the world.
+       </p>
 
-      <Button
-       className="mt-4"
-       variant="hero"
-       onClick={() => navigate("/upload-project")}>
-       <Plus className="h-4 w-4 mr-2" /> Upload New Project
-      </Button>
+       <Button
+        className="bg-white text-blue-600 hover:bg-white/90 shadow-xl font-semibold transition-all duration-200 hover:scale-105"
+        variant="hero"
+        onClick={() => navigate("/upload-project")}>
+        <Plus className="h-4 w-4 mr-2" /> Upload New Project
+       </Button>
+      </div>
      </div>
     </section>
 
     {/* STATS */}
-    <section className="py-8">
-     <div className="container grid grid-cols-2 md:grid-cols-4 gap-4">
+    <section className="py-8 bg-white/80 backdrop-blur-sm">
+     <div className="container grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
       {stats.map((stat, index) => (
-       <Card key={index} className="gradient-card shadow-soft">
-        <CardContent className="pt-6 flex items-center gap-4">
-         <div className={`p-3 rounded-lg bg-muted ${stat.color}`}>
-          <stat.icon className="h-6 w-6" />
-         </div>
-         <div>
-          <p className="text-2xl font-bold">{stat.value}</p>
-          <p className="text-xs text-muted-foreground">{stat.label}</p>
+       <Card
+        key={index}
+        className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-blue-50/50">
+        <CardContent className="pt-6">
+         <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 shadow-lg">
+           <stat.icon className="h-6 w-6 text-white" />
+          </div>
+          <div>
+           <p className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            {stat.value}
+           </p>
+           <p className="text-xs font-medium text-gray-600">{stat.label}</p>
+          </div>
          </div>
         </CardContent>
        </Card>
@@ -764,70 +786,113 @@ const Dashboard = () => {
     </section>
 
     {/* PROJECT TABLE */}
-    <section className="py-8">
+    <section className="py-8 bg-gradient-to-b from-white to-blue-50/30">
      <div className="container">
-      <Card className="gradient-card shadow-soft">
-       <CardHeader>
-        <CardTitle>Your Projects</CardTitle>
+      <Card className="border-0 shadow-xl bg-white overflow-hidden">
+       <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b">
+        <div className="flex items-center gap-3">
+         <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500">
+          <FolderOpen className="h-5 w-5 text-white" />
+         </div>
+         <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          Your Projects
+         </CardTitle>
+        </div>
        </CardHeader>
 
-       <CardContent>
+       <CardContent className="p-0">
         {loading ? (
-         <p className="text-center py-6 text-muted-foreground">
-          Loading your projects...
-         </p>
+         <div className="text-center py-12">
+          <div className="inline-block p-4 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 mb-4">
+           <FolderOpen className="h-8 w-8 text-white animate-pulse" />
+          </div>
+          <p className="text-gray-600 font-medium">Loading your projects...</p>
+         </div>
         ) : myProjects.length === 0 ? (
-         <p className="text-center py-6 text-muted-foreground">
-          You haven't uploaded any projects yet.
-         </p>
+         <div className="text-center py-12 px-4">
+          <div className="inline-block p-4 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 mb-4">
+           <FolderOpen className="h-8 w-8 text-gray-400" />
+          </div>
+          <p className="text-lg font-semibold text-gray-700 mb-2">
+           No projects yet
+          </p>
+          <p className="text-gray-600 mb-6">
+           You haven't uploaded any projects yet. Start showcasing your work!
+          </p>
+          <Button
+           variant="hero"
+           className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-lg"
+           onClick={() => navigate("/upload-project")}>
+           <Plus className="h-4 w-4 mr-2" /> Upload Your First Project
+          </Button>
+         </div>
         ) : (
-         <Table>
-          <TableHeader>
-           <TableRow>
-            <TableHead>Title</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-           </TableRow>
-          </TableHeader>
-
-          <TableBody>
-           {myProjects.map((project) => (
-            <TableRow key={project._id}>
-             <TableCell className="font-medium">
-              <Link
-               to={`/project/${project._id}`}
-               className="hover:text-primary">
-               {project.title}
-              </Link>
-             </TableCell>
-
-             <TableCell>
-              <Badge variant="secondary" className="text-black">
-               {project.approved === false ? "Pending" : "Approved"}
-              </Badge>
-             </TableCell>
-
-             <TableCell className="text-right">
-              <div className="flex justify-end gap-2">
-               <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => openEditPopup(project)}>
-                <Edit className="h-4 w-4" />
-               </Button>
-
-               <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => deleteProject(project._id)}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-               </Button>
-              </div>
-             </TableCell>
+         <div className="overflow-x-auto">
+          <Table>
+           <TableHeader>
+            <TableRow className="bg-gray-50/50">
+             <TableHead className="font-semibold text-gray-700">
+              Title
+             </TableHead>
+             <TableHead className="font-semibold text-gray-700">
+              Status
+             </TableHead>
+             <TableHead className="text-right font-semibold text-gray-700">
+              Actions
+             </TableHead>
             </TableRow>
-           ))}
-          </TableBody>
-         </Table>
+           </TableHeader>
+
+           <TableBody>
+            {myProjects.map((project, index) => (
+             <TableRow
+              key={project._id}
+              className="hover:bg-blue-50/50 transition-colors border-b">
+              <TableCell className="font-medium">
+               <Link
+                to={`/project/${project._id}`}
+                className="text-gray-800 hover:text-blue-600 transition-colors flex items-center gap-2">
+                <FolderOpen className="h-4 w-4 text-gray-400" />
+                {project.title}
+               </Link>
+              </TableCell>
+
+              <TableCell>
+               <Badge
+                variant="secondary"
+                className={
+                 project.approved === false
+                  ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                  : "bg-green-100 text-green-800 border-green-200"
+                }>
+                {project.approved === false ? "Pending" : "Approved"}
+               </Badge>
+              </TableCell>
+
+              <TableCell className="text-right">
+               <div className="flex justify-end gap-2">
+                <Button
+                 size="icon"
+                 variant="ghost"
+                 onClick={() => openEditPopup(project)}
+                 className="hover:bg-blue-100 hover:text-blue-600 transition-colors">
+                 <Edit className="h-4 w-4" />
+                </Button>
+
+                <Button
+                 size="icon"
+                 variant="ghost"
+                 onClick={() => deleteProject(project._id)}
+                 className="hover:bg-red-100 hover:text-red-600 transition-colors">
+                 <Trash2 className="h-4 w-4" />
+                </Button>
+               </div>
+              </TableCell>
+             </TableRow>
+            ))}
+           </TableBody>
+          </Table>
+         </div>
         )}
        </CardContent>
       </Card>
